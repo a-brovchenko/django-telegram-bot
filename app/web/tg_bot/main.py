@@ -4,12 +4,15 @@ from bs4 import BeautifulSoup as bs
 import json
 import requests
 from datetime import datetime, timedelta
-from .models import News, User
+import django
+django.setup()
+from .models import News_bot, Users_bot, Tags_bot
+import logging
 
 class ParseNews:
-
+    
     """Class for parsing and working with news"""
-
+    
     def get_search_news(self, value):
 
         """Search by sites from the database file 'search.json'"""
@@ -36,11 +39,10 @@ class ParseNews:
             tags = news["text"].split("class_=")
             datatags = news["date"].split("class_=")
             res = soup.find_all(tags[0], class_=tags[1], limit=3)
-            current_date_minus_six_hours = datetime.now() - timedelta(hours=48)
+            current_date_minus_six_hours = datetime.now() - timedelta(hours=100)
 
             for i in res:
                 date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator=' ')
-                
                 date = self.get_public_date(date, news['site'])
         
                 if date >= current_date_minus_six_hours:
@@ -52,7 +54,6 @@ class ParseNews:
                             link = re.match(r"^h.*\.(com|uk|org|ca)", news["site"]).group()
                             list_news.append([i.a.get_text(strip=True, separator=' '),
                                                 link + i.a.get("href"), value, date])
-                        
         return list_news
 
 
@@ -83,16 +84,12 @@ class ParseNews:
                 return date
 
    
-    def get_add_news(self, value):
+    def get_add_news(self, news, check_list):
         """add news to database"""
         
-        list_news = self.get_search_news(value)
-        check_list = self.get_check_news(value)
-     
-        # Insert new values
-        for i in list_news:
+        for i in news:
             if i[1] not in check_list:
-                news = News(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
+                news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
                 news.save()
 
 
@@ -100,36 +97,43 @@ class ParseNews:
         """Deleting news older than 6 hours"""
 
         six_hours_ago = datetime.now() - timedelta(hours=6)
-        News.objects.filter(add_date__lt=six_hours_ago).delete()
+        News_bot.objects.filter(add_date__lt=six_hours_ago).delete()
 
 
-    def get_show_news(self, value):
+
+    def get_show_news(self, value): 
+            """Show news in db, else parse news + add in db"""
+            
             value = value.title()
-            result = [[x.news, x.site] for x in News.objects.filter(tags=value)]
+            result = News_bot.objects.filter(tags=value)            
+            if result: # if news in db
+                result = [[x.news, x.site] for x in News_bot.objects.filter(tags=value)]
+
+            else: # parsing sites + add news in db +  sending news to a bot 
+                result = self.get_search_news(value)
+                if len(result) > 0:
+                    check_list = self.get_check_news(value)
+                    self.get_add_news(news=result, check_list=check_list)
+                    result = [[x[0], x[1]] for x in result]
+
             return result
-
-
-    def get_all_tags_in_db(self):
-        """Get all tags in json"""
-
-        result = {'tags' : [x['tags'] for x in News.objects.values('tags').distinct()]}
-        return result
-
-
-    def get_all_news_in_db(self):
-        """Get all news in json"""
-
-        result = {'news': [x.news for x in News.objects.all()]}
-        return result
-
+    
 
     def get_check_news(self, value):
         """Check for duplicates"""
-        
-        result = News.objects.filter(tags=value).values_list('site', flat=True)
-        print(result)
-
+        result = News_bot.objects.filter(tags=value).values_list('site', flat=True)
         return result
+    
+
+    def get_dict_news(self):
+
+        result = News_bot.objects.values('tags').distinct()
+        tag = [x.tags for x in result]
+        dict_news = dict()
+        dict_news['Tags'] = tag
+
+        return dict_news
+
 
 class Users:
     """Class for working with user"""
@@ -138,22 +142,111 @@ class Users:
         """Adds users to the database"""
        
         if not token:
-            user = User(telegram_id=value)
+            user = Users_bot(telegram_id=value)
         elif token:
-            user= User.objects.get(id=value)
+            user= Users_bot.objects.get(id=value)
             user.token = token
             user.save()
 
 
     def get_delete_user(self, value):
         """Delete users to the database"""
-        user_to_delete = User.objects.filter(id=value).delete()
-
+        user_to_delete = Users_bot.objects.filter(id=value).delete()
 
     def get_check_user(self, value):
         """Check for record availability"""
-        if User.objects.get(id=value):
+        user = Users_bot.objects.get(telegram_id=value)
+        if user:
             return True
         else:
             return False
         
+
+    def get_show_user(self, id_user=None):
+
+        """Show users"""
+        if not id_user:
+            select_query = "SELECT * FROM `Users`"
+            result = Users_bot.objects.all()
+            return result
+
+        else:
+            select_query = "SELECT `token` FROM `Users` Where id = (%s)"
+            result =  Users_bot.objects.filter(telegram_id=id_user)
+            return result
+
+class Tags:
+
+    """Class for working with tag"""
+
+    def get_add_tags(self, id_tag, tag):
+
+        """Adds tag to Database"""
+
+        tag = tag.title()
+        if self.get_check_tags(id_tag, tag):
+            return 'you have already subscribed to these tags'
+        else:
+            data = Tags_bot(telegram_id=id_tag, tags=tag).save()
+
+
+    def get_check_tags(self, id_tag, tag):
+
+        """Check tags"""
+        result = Tags_bot.objects.filter(telegram_id=id_tag, tags=tag)
+        if result:
+            return True
+        else:
+            return False
+        
+
+    def get_all_delete_tags(self, id_tag):
+
+        """Delete all tags"""
+
+        delete_tags = Tags_bot.objects.filter(telegram_id=id_tag).delete()
+
+
+    def get_delete_tags(self, id_tag, value):
+
+        """Delete tag"""
+        delete_tags = Tags_bot.objects.filter(telegram_id=id_tag, tags=value).delete()
+
+
+    def get_show_tags(self, id_tag=None):
+
+        """Show tags"""
+
+        if id_tag:
+            result = Tags_bot.objects.filter(telegram_id=id_tag)
+            tags = [x['tag'] for x in result]
+        else:
+            result = Tags_bot.objects.values('tag').distinct()
+            tags = [x['tag'] for x in result]
+
+        return tags
+    
+
+class SendData:
+
+    """Class for sending data to the bot"""
+
+    def send_data(self):
+
+        user = Users()
+        tag = Tags()
+        tags_db = ParseNews()
+
+        result = {}
+
+        res = {x['id']: tag.get_show_tags(x['id']) for x in user.get_show_user()}
+        user_tag = [{'id': i, 'tag': res[i]} for i in res]
+
+        tags_db = tags_db.get_dict_news()['Tags']
+
+        result['Tags_db'] = tags_db
+        result['Users_tag'] = user_tag
+
+        return result
+    
+    

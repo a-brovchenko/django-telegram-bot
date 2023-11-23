@@ -1,13 +1,13 @@
 import os
 import sys
-import threading
-from tg_bot.bot import run_bot
-from multiprocessing import Process
+
 
 def main():
 
     if 'runserver' in sys.argv:
             if os.environ.get('RUN_MAIN', None) != 'true':
+                from tg_bot.bot import run_bot
+                from multiprocessing import Process
                 p = Process(target=run_bot).start()
 
     """Run administrative tasks."""
@@ -22,6 +22,7 @@ def main():
         ) from exc
     execute_from_command_line(sys.argv)
 
+    
 
 if __name__ == '__main__':
     main()
