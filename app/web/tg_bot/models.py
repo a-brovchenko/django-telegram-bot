@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 
-class News(models.Model):
+class News_bot(models.Model):
     news = models.CharField(max_length=400)
     site = models.CharField(max_length=200)
     tags = models.CharField(max_length=100)
@@ -13,7 +13,7 @@ class News(models.Model):
         return self.tags
     
 
-class User(AbstractUser):
+class Users_bot(models.Model):
     telegram_id = models.IntegerField(default=0, unique=True)
     token = models.CharField(max_length=50)
 
@@ -21,8 +21,8 @@ class User(AbstractUser):
         return str(self.telegram_id)
     
 
-class Tags(models.Model):
-    telegram_id = models.ForeignKey(User, on_delete=models.CASCADE, to_field='telegram_id')
+class Tags_bot(models.Model):
+    telegram_id = models.ForeignKey(Users_bot, on_delete=models.CASCADE, to_field='telegram_id')
     tags = models.CharField(max_length=50)
 
     def __str__(self):
