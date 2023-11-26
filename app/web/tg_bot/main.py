@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import django
 django.setup()
 from .models import News_bot, Users_bot, Tags_bot
-import logging
+
 
 class ParseNews:
     
@@ -100,7 +100,6 @@ class ParseNews:
         News_bot.objects.filter(add_date__lt=six_hours_ago).delete()
 
 
-
     def get_show_news(self, value): 
             """Show news in db, else parse news + add in db"""
             
@@ -125,105 +124,68 @@ class ParseNews:
         return result
     
 
-    def get_dict_news(self):
+    # def get_dict_news(self):
 
-        result = News_bot.objects.values('tags').distinct()
-        tag = [x.tags for x in result]
-        dict_news = dict()
-        dict_news['Tags'] = tag
+    #     result = News_bot.objects.values('tags').distinct()
+    #     tag = [x.tags for x in result]
+    #     dict_news = dict()
+    #     dict_news['Tags'] = tag
 
-        return dict_news
+    #     return dict_news
 
 
 class Users:
     """Class for working with user"""
 
-    def get_add_user(self, value, token=None):
+    def get_add_user(self, id_user):
         """Adds users to the database"""
-       
-        if not token:
-            user = Users_bot(telegram_id=value)
-        elif token:
-            user= Users_bot.objects.get(id=value)
-            user.token = token
-            user.save()
+        Users_bot(telegram_id=id_user).save()
 
 
-    def get_delete_user(self, value):
+    def get_delete_user(self, id_user):
         """Delete users to the database"""
-        user_to_delete = Users_bot.objects.filter(id=value).delete()
+        user_to_delete = Users_bot.objects.filter(telegram_id=id_user).delete()
 
-    def get_check_user(self, value):
-        """Check for record availability"""
-        user = Users_bot.objects.get(telegram_id=value)
-        if user:
-            return True
-        else:
-            return False
-        
 
-    def get_show_user(self, id_user=None):
-
-        """Show users"""
-        if not id_user:
-            select_query = "SELECT * FROM `Users`"
-            result = Users_bot.objects.all()
-            return result
-
-        else:
-            select_query = "SELECT `token` FROM `Users` Where id = (%s)"
-            result =  Users_bot.objects.filter(telegram_id=id_user)
-            return result
+    def get_show_user(self, id_user):
+        result = Users_bot.objects.filter(telegram_id=id_user)
+        return result
 
 class Tags:
 
     """Class for working with tag"""
 
-    def get_add_tags(self, id_tag, tag):
-
+    def get_add_tags(self, id_user, tag):
         """Adds tag to Database"""
-
         tag = tag.title()
-        if self.get_check_tags(id_tag, tag):
-            return 'you have already subscribed to these tags'
-        else:
-            data = Tags_bot(telegram_id=id_tag, tags=tag).save()
+        user = Users_bot.objects.get(telegram_id=id_user)
+        Tags_bot(telegram_id=user, tags=tag).save()
 
 
-    def get_check_tags(self, id_tag, tag):
+    def get_delete_tags(self, message):
+        Tags_bot.objects.filter(telegram_id=message.chat.id, tags=message.text.title()).delete()
 
-        """Check tags"""
-        result = Tags_bot.objects.filter(telegram_id=id_tag, tags=tag)
-        if result:
+
+    def get_check_tags(self,id_user, user_tag):
+
+        user_tag = user_tag.title()
+        tags = [x.tags for x in Tags_bot.objects.filter(telegram_id=id_user)]
+        if user_tag in tags:
             return True
-        else:
-            return False
         
-
-    def get_all_delete_tags(self, id_tag):
-
-        """Delete all tags"""
-
-        delete_tags = Tags_bot.objects.filter(telegram_id=id_tag).delete()
+        return False
 
 
-    def get_delete_tags(self, id_tag, value):
 
-        """Delete tag"""
-        delete_tags = Tags_bot.objects.filter(telegram_id=id_tag, tags=value).delete()
-
-
-    def get_show_tags(self, id_tag=None):
-
+    def get_show_tags(self, id_user=None):
         """Show tags"""
 
-        if id_tag:
-            result = Tags_bot.objects.filter(telegram_id=id_tag)
-            tags = [x['tag'] for x in result]
+        if id_user:
+            result = Tags_bot.objects.filter(telegram_id=id_user)
         else:
             result = Tags_bot.objects.values('tag').distinct()
-            tags = [x['tag'] for x in result]
-
+        
+        tags = [x.tags for x in result]
         return tags
     
 
