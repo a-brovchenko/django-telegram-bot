@@ -222,8 +222,8 @@ def thread():
     schedule.every(5).minutes.do(schedule_add_news_in_db)
 
     # Tasks by UTC
-    schedule.every().day.at("18:25").do(schedule_sending_news)
-    schedule.every().day.at("18:30").do(schedule_sending_news)
+    schedule.every().day.at("18:00").do(schedule_sending_news)
+    schedule.every().day.at("18:00").do(schedule_sending_news)
 
     while True:
         schedule.run_pending()
