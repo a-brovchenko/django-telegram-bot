@@ -3,10 +3,12 @@ from telebot import types
 import telebot
 from telegram_bot_pagination import InlineKeyboardPaginator
 from dotenv import load_dotenv
-from .main import ParseNews, Users, Tags, SendData
+from .main import ParseNews, Users, Tags
 from django.core.cache import cache
 import schedule
 import time
+import logging
+import threading
 
 
 load_dotenv()
@@ -195,5 +197,38 @@ def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
             )
     
     
+def schedule_add_news_in_db():
+    tag = Tags()
+    news = ParseNews()
+    news.get_delete_old_news()
+    [news.get_add_news(news=news.get_search_news(x), check_list=news.get_check_news(x)) for x in tag.get_show_tags()]
+
+
+def schedule_sending_news():
+    user = Users()
+    tag = Tags()
+    news = { x:tag.get_show_tags(x) for x in user.get_all_users() }
+
+    for id in news:
+        for tags in news[id]:
+            send_news_user(tags_news=tags, id_user=id)
+
+
+def thread():
+    #add new news and delete older than 6 hours
+    schedule.every(5).minutes.do(schedule_add_news_in_db)
+
+    # Tasks by UTC
+    schedule.every().day.at("18:25").do(schedule_sending_news)
+    schedule.every().day.at("18:30").do(schedule_sending_news)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
 def run_bot():
-    bot.polling(non_stop=True)
+    thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
+    logging.info("Telebot started")
+    thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
+    logging.info("Telegram poller started")
