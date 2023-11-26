@@ -30,7 +30,8 @@ def start(message):
 @bot.callback_query_handler(func=lambda call: True)
 def main(call):
     # pagination
-    if f":1:{call.data.split('#')[0]}" in list(cache._cache.keys()): 
+    if f"{call.data.split('#')[0]}" in list(cache.keys('*')): 
+        print(True)
         page = int(call.data.split('#')[1])
         send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
 
@@ -49,6 +50,7 @@ def main(call):
         else:
             bot.send_message(call.message.chat.id, 'You are not subscribed', parse_mode='html')
 
+    #delete selected tag
     elif call.data == "❌ Delete tag":
         text = "Enter the tag you want to unsubscribe from"
         message = bot.send_message(call.message.chat.id, text, parse_mode='html')
@@ -64,6 +66,7 @@ def main(call):
         message = bot.send_message(call.message.chat.id, text, parse_mode='html')
         bot.register_next_step_handler(message, add_tags_in_db)
 
+    # add selected tag
     elif call.data == "✅ Add tag":
 
         tag_add = bot.send_message(call.message.chat.id, ' Please enter a tag', parse_mode='HTML')
@@ -173,7 +176,7 @@ def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
         pages = [f"<b>News by tag {tags_news}\n\n" 
                      f"{x[0]}</b>\n\n<b>" 
                      f"<a href='{x[1]}'>Source</a></b>\n\n" for x in news]
-
+        
         paginator = InlineKeyboardPaginator(
             len(pages),
             current_page=page,
@@ -219,8 +222,8 @@ def thread():
     schedule.every(5).minutes.do(schedule_add_news_in_db)
 
     # Tasks by UTC
-    schedule.every().day.at("18:25").do(schedule_sending_news)
-    schedule.every().day.at("18:30").do(schedule_sending_news)
+    schedule.every().day.at("18:00").do(schedule_sending_news)
+    schedule.every().day.at("18:00").do(schedule_sending_news)
 
     while True:
         schedule.run_pending()
