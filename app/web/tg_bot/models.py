@@ -14,8 +14,8 @@ class News_bot(models.Model):
     
 
 class Users_bot(models.Model):
-    telegram_id = models.IntegerField(default=0, unique=True)
-    token = models.CharField(max_length=50)
+    telegram_id = models.IntegerField(unique=True)
+    token = models.CharField(max_length=50, default=False)
 
     def __str__(self):
         return str(self.telegram_id)

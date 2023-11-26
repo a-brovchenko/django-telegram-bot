@@ -13,7 +13,7 @@ load_dotenv()
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
 
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton("📰 World news")
@@ -27,15 +27,85 @@ def start(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def main(call):
-    if f":1:{call.data.split('#')[0]}" in list(cache._cache.keys()):
+    # pagination
+    if f":1:{call.data.split('#')[0]}" in list(cache._cache.keys()): 
         page = int(call.data.split('#')[1])
         send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
 
+    #return start page
+    elif call.data == 'start':
+        start(call.message)
+
+    #deleting user data from the database
+    elif call.data == "🚫 Unsubscribe":
+        del_user = Users()
+        user = del_user.get_show_user(call.message.chat.id)
+        if user:
+            del_user.get_delete_user(id_user=call.message.chat.id)
+            bot.send_message(call.message.chat.id, '🚫 You have unsubscribed from the newsletter ', parse_mode='html')
+
+        else:
+            bot.send_message(call.message.chat.id, 'You are not subscribed', parse_mode='html')
+
+    elif call.data == "❌ Delete tag":
+        text = "Enter the tag you want to unsubscribe from"
+        message = bot.send_message(call.message.chat.id, text, parse_mode='html')
+        bot.register_next_step_handler(message, delete_tag)
+
+
+    # add user data from the database
+    elif call.data == "✅ Subscribe":
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton("✅ Add tag", callback_data='✅ Add tag')
+        markup.add(btn1)
+        text = "Enter the tag for which you want to receive news"
+        message = bot.send_message(call.message.chat.id, text, parse_mode='html')
+        bot.register_next_step_handler(message, add_tags_in_db)
+
+    elif call.data == "✅ Add tag":
+
+        tag_add = bot.send_message(call.message.chat.id, ' Please enter a tag', parse_mode='HTML')
+        bot.register_next_step_handler(tag_add, add_tags_in_db)
+        
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
     if message.text == '📰 World news':
         send_news_user(tags_news='World', id_user=message.chat.id)
+        
+    elif message.text == '✅ My subscriptions':
+        user = Users()
+        user = user.get_show_user(message.chat.id)
+        if user:
+            tag = Tags()
+            markup = types.InlineKeyboardMarkup()
+            btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data='✅ Add tag')
+            btn2 = types.InlineKeyboardButton('❌ Delete tag', callback_data='❌ Delete tag')
+            btn3 = types.InlineKeyboardButton('🚫 Unsubscribe', callback_data='🚫 Unsubscribe')
+            btn4 = types.InlineKeyboardButton('📨 Show token', callback_data='📨 Show token')
+            markup.add(btn1, btn2)
+            markup.add(btn3)
+            markup.add(btn4)
+            user_tags = tag.get_show_tags(message.chat.id)
+            if user_tags:
+                user_tags = '\n'.join(tag.get_show_tags(message.chat.id))
+                bot.send_message(message.chat.id, f"You are subscribed to:\n{user_tags}",
+                                    parse_mode='HTML',
+                                    reply_markup=markup)
+            else:
+                markup = types.InlineKeyboardMarkup()
+                btn1 = types.InlineKeyboardButton('✅ Add tag', callback_data='✅ Add tag')
+                btn2 = types.InlineKeyboardButton('🚫 Unsubscribe', callback_data='🚫 Unsubscribe')
+                markup.add(btn1, btn2)
+                bot.send_message(message.chat.id, "You don't have tags", parse_mode='HTML', reply_markup=markup)
+
+        else:
+            markup = types.InlineKeyboardMarkup()
+            btn1 = types.InlineKeyboardButton('✅ Subscribe', callback_data='✅ Subscribe')
+            btn2 = types.InlineKeyboardButton('⬅️ Back', callback_data='start')
+            markup.add(btn1, btn2)
+            text = 'You are not subscribed to the bot, to receive news, please subscribe'
+            bot.send_message(message.chat.id, text, parse_mode='HTML', reply_markup=markup)
 
     elif message.text == "📨 News without subscription":
         news = bot.send_message(message.chat.id, 'Please enter the title of the news,\n'
@@ -47,6 +117,38 @@ def news_without_subscription(tag):
     tag.text = tag.text.title()
     send_news_user(tags_news=tag.text, id_user=tag.chat.id)
 
+
+def add_tags_in_db(message):
+    tag = Tags()
+    if tag.get_check_tags(id_user=message.chat.id, user_tag=message.text):
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton("✅ Add another tag", callback_data='✅ Add tag')
+        btn2 = types.InlineKeyboardButton("⬅️Back", callback_data='start')
+        markup.add(btn1, btn2)
+        bot.send_message(message.chat.id, 'You have already added a tag', parse_mode='HTML', reply_markup=markup)
+    
+    else:
+        user = Users()
+        if not user.get_show_user(id_user=message.chat.id):
+            user.get_add_user(message.chat.id)
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton("✅ Add another tag", callback_data='✅ Add tag')
+        btn2 = types.InlineKeyboardButton("⬅️Back", callback_data='start')
+        btn3 = types.InlineKeyboardButton('Show token', callback_data='📨 Show token')
+        markup.add(btn1, btn2)
+        markup.add(btn3)
+        tag.get_add_tags(id_user=message.chat.id, tag=message.text)
+        bot.send_message(message.chat.id, f"Tag {message.text} added successfully", parse_mode="HTML", reply_markup=markup)
+
+
+def delete_tag(message):
+    tag = Tags()
+    tag.get_delete_tags(message=message)
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton("❌ Delete another tag", callback_data='❌ Delete tag')
+    btn2 = types.InlineKeyboardButton("⬅️Back", callback_data='start')
+    markup.add(btn1, btn2)
+    bot.send_message(message.chat.id, f"Tag removed", parse_mode="HTML", reply_markup=markup)
 
 
 def list_news_in_cache(tag):
