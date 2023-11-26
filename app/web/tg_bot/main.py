@@ -54,6 +54,7 @@ class ParseNews:
                             link = re.match(r"^h.*\.(com|uk|org|ca)", news["site"]).group()
                             list_news.append([i.a.get_text(strip=True, separator=' '),
                                                 link + i.a.get("href"), value, date])
+        
         return list_news
 
 
@@ -86,7 +87,7 @@ class ParseNews:
    
     def get_add_news(self, news, check_list):
         """add news to database"""
-        
+
         for i in news:
             if i[1] not in check_list:
                 news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
@@ -122,16 +123,6 @@ class ParseNews:
         """Check for duplicates"""
         result = News_bot.objects.filter(tags=value).values_list('site', flat=True)
         return result
-    
-
-    # def get_dict_news(self):
-
-    #     result = News_bot.objects.values('tags').distinct()
-    #     tag = [x.tags for x in result]
-    #     dict_news = dict()
-    #     dict_news['Tags'] = tag
-
-    #     return dict_news
 
 
 class Users:
@@ -150,6 +141,11 @@ class Users:
     def get_show_user(self, id_user):
         result = Users_bot.objects.filter(telegram_id=id_user)
         return result
+    
+
+    def get_all_users(self):
+        return list(Users_bot.objects.values_list('telegram_id', flat=True))
+
 
 class Tags:
 
@@ -182,33 +178,13 @@ class Tags:
 
         if id_user:
             result = Tags_bot.objects.filter(telegram_id=id_user)
+            tags = [x.tags for x in result]
         else:
-            result = Tags_bot.objects.values('tag').distinct()
+            result = Tags_bot.objects.values('tags').distinct()
+            tags = [x['tags'] for x in result]
         
-        tags = [x.tags for x in result]
+
         return tags
     
 
-class SendData:
-
-    """Class for sending data to the bot"""
-
-    def send_data(self):
-
-        user = Users()
-        tag = Tags()
-        tags_db = ParseNews()
-
-        result = {}
-
-        res = {x['id']: tag.get_show_tags(x['id']) for x in user.get_show_user()}
-        user_tag = [{'id': i, 'tag': res[i]} for i in res]
-
-        tags_db = tags_db.get_dict_news()['Tags']
-
-        result['Tags_db'] = tags_db
-        result['Users_tag'] = user_tag
-
-        return result
-    
     
