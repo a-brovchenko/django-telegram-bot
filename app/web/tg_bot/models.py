@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import pytz
 
 
 class News_bot(models.Model):
@@ -9,12 +10,17 @@ class News_bot(models.Model):
     data_publisher = models.DateTimeField()
     add_date = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        if not self.data_publisher.tzinfo:
+            self.data_publisher = pytz.utc.localize(self.data_publisher)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.tags
     
 
-class Users_bot(models.Model):
-    telegram_id = models.IntegerField(unique=True)
+class Users_bot(AbstractUser):
+    telegram_id = models.IntegerField(null=True, unique=True)
     token = models.CharField(max_length=50, default=False)
 
     def __str__(self):

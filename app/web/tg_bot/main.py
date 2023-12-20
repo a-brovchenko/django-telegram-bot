@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 import django
 django.setup()
 from .models import News_bot, Users_bot, Tags_bot
-
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By 
 
 class ParseNews:
     
@@ -15,79 +17,129 @@ class ParseNews:
     
     def get_search_news(self, value):
 
-        """Search by sites from the database file 'search.json'"""
+        return self.abc_news(value) + self.ndtv_news(value) + self.the_sun_news(value)
 
-        value = value.title()
-        list_news = []
-
-        # open file
-        file_path = os.path.join(os.path.dirname(__file__), 'search.json')
-
-        with open(file_path, "r") as file:
-            filer = file.read()
-            dict_news = json.loads(filer)
-
-        for news in dict_news:
-            # Check word
-            if len(value.split()) > 1:
-                driver = requests.get(news["site"].format(f"{news['search']}".join(value.split())))
-            else:
-                driver = requests.get(news["site"].format(value))
-
-            # get html and tags
-            soup = bs(driver.content, "lxml")
-            tags = news["text"].split("class_=")
-            datatags = news["date"].split("class_=")
-            res = soup.find_all(tags[0], class_=tags[1], limit=3)
-            current_date_minus_six_hours = datetime.now() - timedelta(hours=100)
-
-            for i in res:
-                date = i.find(datatags[0], class_=datatags[1]).get_text(strip=True, separator=' ')
-                date = self.get_public_date(date, news['site'])
-        
-                if date >= current_date_minus_six_hours:
-                    if date >= current_date_minus_six_hours:
-                        if 'http' in i.a.get('href'):
-                            list_news.append([i.a.get_text(strip=True, separator=' ').replace("\xa0", ""),
-                                                i.a.get("href"), value, date])
-                        else:
-                            link = re.match(r"^h.*\.(com|uk|org|ca)", news["site"]).group()
-                            list_news.append([i.a.get_text(strip=True, separator=' '),
-                                                link + i.a.get("href"), value, date])
-        
-        return list_news
-
-
-    def get_today_data(self):
-        today = str(datetime.today().date())
-        data = datetime.strptime(today, '%Y-%m-%d')
-        return datetime.timestamp(data)
-
-
-    def get_public_date(self, value, site):
     
-        """Convert publication date to string"""
-        if len(value) == 0:
-            return datetime.now()
-        
-        elif "www.ndtv.com" in site:
-            date = re.search(r'\w+\s{1,2}\d{1,2}, \d{4}', value).group()
-            date = datetime.strptime(date, '%B %d, %Y')
-            return date
-        
-        elif "globalnews" in site:
-            if 'hours' in value or 'hour' in value:
-                return datetime.now()
-            else:
-                date = re.search(r'\w{3} \d{1,2}', value).group()
-                date = f'{date} {datetime.now().year}'
-                date = datetime.strptime(date, '%b %d %Y')
-                return date
+    def selenium_option(self):
+        options = Options()
+        options.add_argument("--no-sandbox")
+        options.add_argument("--headless")
+        options.add_argument("--no-proxe-server")
+        options.add_argument("--disable-gpu")
 
-   
+        response = webdriver.Chrome(options=options)
+        return response
+
+
+    def abc_news(self, tag):
+
+        news_list = []
+
+        tag = tag.title()
+        if len(tag.split()) > 1:
+            tag = '%2520'.join(tag.split())
+
+        response = self.selenium_option()
+        response.get(f"https://abcnews.go.com/search?searchtext={tag}&after=today")
+        html_page = response.find_elements(By.CSS_SELECTOR, "section.ContentRoll__Item")
+
+        pattern = re.compile(r"([Ii]n\s)?((\b[1-6]\shours?\s(ago)?)|(\d+\s(minute|second)s?))") 
+        pattern_date = re.compile(r"\d+")
+        for news in html_page:
+            try:
+                match = pattern.search(news.text)
+                if match:
+                    time = pattern_date.search(match.group()).group()
+                    if 'hour' in match.group():
+                        date_publisher = datetime.now() - timedelta(hours=int(time))
+                    elif 'minute' in match.group():
+                        date_publisher = datetime.now() - timedelta(minutes=int(time))
+                    else:
+                        date_publisher = datetime.now()
+                    link = news.find_element(By.CSS_SELECTOR, 'a').get_attribute('href')
+
+                    news_list.append((news.text.replace('\n', ''), link, tag, date_publisher))
+
+                else:
+                    continue
+
+            except (AttributeError, ValueError):
+                continue
+
+        response.quit()
+        return news_list
+
+
+    def the_sun_news(self, tag):
+        tag = tag.title()
+        if len(tag.split()) > 1:
+            tag = '+'.join(tag.split())
+        news_list = []
+        response = requests.get(f"https://www.the-sun.com/?s={tag}")
+        soup = bs(response.content, "lxml")
+        soup = soup.find_all('div', class_=re.compile(r'teaser-item teaser__large-side teaser theme-(?!betting)\w+'), limit=5)
+
+        for news in soup:
+            try:
+                link = 'https://www.the-sun.com'+ news.find('a', class_='text-anchor-wrap')['href']
+                response_news = requests.get(link)
+                soup_page_date = bs(response_news.content, 'lxml')
+                
+                if soup_page_date.find('li', class_='article__updated'):
+                    soup_page_date = soup_page_date.find('li', class_='article__updated').text
+                else:
+                    soup_page_date = soup_page_date.find('li', class_='article__published').text
+
+                time = re.findall(r'(\d{1,2}:\d{1,2})', soup_page_date)
+                day = re.findall(r'(\w{3} \d{1,2} \d{4})', soup_page_date)
+                date_publisher = datetime.strptime(' '.join(day + time), "%b %d %Y %H:%M") + timedelta(hours=6)
+
+                if date_publisher < (datetime.now() - timedelta(hours=6)):
+                    continue
+                else:
+                    text = news.find('h3', class_='teaser__subdeck').text
+                
+                news_list.append((text, link, tag, date_publisher))
+
+            except (AttributeError, ValueError):
+                continue
+        return news_list
+
+
+    def ndtv_news(self, tag):
+
+        tag = tag.title()
+        if len(tag.split()) > 1:
+            tag = '-'.join(tag.split())
+        news_list = []
+        response = requests.get(f"https://www.ndtv.com/search?searchtext={tag}")
+        soup = bs(response.content, "lxml")
+        soup = soup.find_all('li', class_='src_lst-li', limit=8)
+        for news in soup:
+            try:
+                link = news.find('a')['href']
+
+                if 'https://www.ndtv.com' in link:
+                    page = requests.get(link)
+                    soup = bs(page.content, "lxml")
+                    date_str = soup.find('span', {'itemprop':'dateModified'})
+                    date = date_str['content']
+                    date = datetime.fromisoformat(date_str['content'])
+                    date = date.replace(tzinfo=None) - timedelta(hours=3, minutes=30)
+                    text = ' '.join(news.text.split())
+
+                    if date < (datetime.now() - timedelta(hours=6)):
+                        continue
+                    else:
+                        news_list.append((text, link, tag,  date))
+            except (AttributeError, ValueError):
+                continue
+        return news_list
+
+
     def get_add_news(self, news, check_list):
         """add news to database"""
-
+        # news = []
         for i in news:
             if i[1] not in check_list:
                 news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
@@ -102,21 +154,21 @@ class ParseNews:
 
 
     def get_show_news(self, value): 
-            """Show news in db, else parse news + add in db"""
-            
-            value = value.title()
-            result = News_bot.objects.filter(tags=value)            
-            if result: # if news in db
-                result = [[x.news, x.site] for x in News_bot.objects.filter(tags=value)]
+        """Show news in db, else parse news + add in db"""
+        
+        value = value.title()
+        result = News_bot.objects.filter(tags=value)            
+        if result:  # if news in db
+            result = [[x.news, x.site] for x in News_bot.objects.filter(tags=value)]
 
-            else: # parsing sites + add news in db +  sending news to a bot 
-                result = self.get_search_news(value)
-                if len(result) > 0:
-                    check_list = self.get_check_news(value)
-                    self.get_add_news(news=result, check_list=check_list)
-                    result = [[x[0], x[1]] for x in result]
+        else:  # parsing sites + add news in db +  sending news to a bot 
+            result = self.get_search_news(value)
+            if len(result) > 0:
+                check_list = self.get_check_news(value)
+                self.get_add_news(news=result, check_list=check_list)
+                result = [[x[0], x[1]] for x in result]
 
-            return result
+        return result
     
 
     def get_check_news(self, value):

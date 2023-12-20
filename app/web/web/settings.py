@@ -24,7 +24,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'rest_framework.authtoken',
     'tg_bot',
+
 ]
 
 MIDDLEWARE = [
@@ -38,6 +41,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'web.urls'
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.TokenAuthentication"
+    ),
+}
+
 
 TEMPLATES = [
     {
@@ -63,8 +73,16 @@ WSGI_APPLICATION = 'web.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        # 'NAME': dotenv_variables['DB_NAME'],
+        # 'USER': dotenv_variables['DB_USER'],
+        # 'PASSWORD': dotenv_variables['DB_PASSWORD'],
+        # 'HOST': dotenv_variables['DB_HOST'],
+        'NAME': 'db',
+        'USER': 'bot',
+        'PASSWORD': 'root',
+        'HOST': 'password',
+        'PORT': '3306',
     }
 }
 
@@ -113,10 +131,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/0',
+        'LOCATION': 'redis://redis:6379/0',
+        # 'LOCATION': 'redis://127.0.0.1:6379/0',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
 }
 
+AUTH_USER_MODEL = 'tg_bot.Users_bot'
