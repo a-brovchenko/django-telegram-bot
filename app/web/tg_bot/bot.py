@@ -9,7 +9,8 @@ import schedule
 import time
 import logging
 import threading
-
+from rest_framework.authtoken.models import Token
+from .models import Users_bot
 
 load_dotenv()
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
@@ -31,7 +32,6 @@ def start(message):
 def main(call):
     # pagination
     if f"{call.data.split('#')[0]}" in list(cache.keys('*')): 
-        print(True)
         page = int(call.data.split('#')[1])
         send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
 
@@ -71,6 +71,34 @@ def main(call):
 
         tag_add = bot.send_message(call.message.chat.id, ' Please enter a tag', parse_mode='HTML')
         bot.register_next_step_handler(tag_add, add_tags_in_db)
+
+    elif call.data == '📨 Show token':
+        user = Users()
+        user_token = user.get_show_user(id_user=call.message.chat.id)
+        user_token = user_token.first()
+        if user_token.token == 'False':
+            text = "You don't have a token\nPlease generate it"
+            markup = types.InlineKeyboardMarkup()
+            btn1 = types.InlineKeyboardButton('✅ Generate token', callback_data='✅ Generate token')
+            btn2 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
+            markup.add(btn1, btn2)
+            bot.send_message(call.message.chat.id, text, parse_mode='html', reply_markup=markup)
+
+        else:
+            text = f"Your token:\n{user_token.token}"
+            bot.send_message(call.message.chat.id, text, parse_mode='html')
+
+    elif call.data == '✅ Generate token':
+
+        user = Users_bot.objects.get(telegram_id=call.message.chat.id)
+        token, created = Token.objects.get_or_create(user=user)
+        user.token = token.key
+        user.save()
+        markup = types.InlineKeyboardMarkup()
+        btn1 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
+        markup.add(btn1)
+        text = f"Your token:\n{token}"
+        bot.send_message(call.message.chat.id, text, parse_mode='html', reply_markup=markup)
         
 
 @bot.message_handler(content_types=['text'])
@@ -182,14 +210,13 @@ def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
             current_page=page,
             data_pattern=f"{tags_news}#{{page}}"
         )
-        
+
         if not page:
             bot.send_message(
                 id_user, pages[0], 
                 reply_markup=paginator.markup, 
                 parse_mode='HTML'
-            )
-            
+            )  
         else:
             bot.edit_message_text( 
                 chat_id=id_user,
@@ -210,7 +237,7 @@ def schedule_add_news_in_db():
 def schedule_sending_news():
     user = Users()
     tag = Tags()
-    news = { x:tag.get_show_tags(x) for x in user.get_all_users() }
+    news = { x:tag.get_show_tags(x) for x in user.get_all_users() if x != None }
 
     for id in news:
         for tags in news[id]:
@@ -219,19 +246,18 @@ def schedule_sending_news():
 
 def thread():
     #add new news and delete older than 6 hours
-    schedule.every(5).minutes.do(schedule_add_news_in_db)
+    schedule.every(60).minutes.do(schedule_add_news_in_db)
 
     # Tasks by UTC
+    schedule.every().day.at("10:00").do(schedule_sending_news)
     schedule.every().day.at("18:00").do(schedule_sending_news)
-    schedule.every().day.at("18:00").do(schedule_sending_news)
+   
 
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-
 def run_bot():
+    print('bot started')
     thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
-    logging.info("Telebot started")
     thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
-    logging.info("Telegram poller started")

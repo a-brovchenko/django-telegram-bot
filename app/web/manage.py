@@ -3,13 +3,14 @@ import sys
 
 
 def main():
-
+    
     if 'runserver' in sys.argv:
             if os.environ.get('RUN_MAIN', None) != 'true':
                 from tg_bot.bot import run_bot
-                from multiprocessing import Process
-                p = Process(target=run_bot).start()
-
+                # from multiprocessing import Process
+                # p = Process(target=run_bot).start()
+                import threading
+                thr = threading.Thread(target=run_bot, name='Daemon', daemon=True).start()
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'web.settings')
     try:
@@ -25,4 +26,5 @@ def main():
     
 
 if __name__ == '__main__':
+    print('start django')
     main()

@@ -6,5 +6,8 @@ python-telegram-bot-pagination==0.0.3
 python-dotenv==1.0.0
 schedule==1.2.1
 django-redis==5.4.0
-djangorestframework-3.14.0
+djangorestframework==3.14.0
 redis==5.0.1
+selenium==4.15.2
+pytz==2023.3.post1
+mysqlclient==2.2.1
