@@ -7,8 +7,8 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     restart: always
-    ports:
-      - "3306:3306"
+    networks:
+      default:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: bot
@@ -20,8 +20,10 @@ services:
       - db
     image: phpmyadmin
     restart: always
+    networks:
+      default:
     ports:
-      - "8090:80"
+      - "8091:80"
     environment:
       PMA_HOST: db
       MYSQL_ROOT_PASSWORD: password
@@ -30,6 +32,8 @@ services:
   redis:
     image: redis:alpine
     container_name: redis
+    networks:
+      default:
     restart: always
     ports:
       - 6379:6379
@@ -40,6 +44,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: bot
+    networks:
+      default:
     restart: always
     ports:
       - 8090:8090
@@ -47,6 +53,13 @@ services:
       - redis
     environment:
       DJANGO_SETTINGS_MODULE: "web.settings"
+  
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: "10.8.11.0/24"
       
 volumes:
   db_data:

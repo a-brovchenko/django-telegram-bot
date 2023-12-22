@@ -74,15 +74,11 @@ WSGI_APPLICATION = 'web.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        # 'NAME': dotenv_variables['DB_NAME'],
-        # 'USER': dotenv_variables['DB_USER'],
-        # 'PASSWORD': dotenv_variables['DB_PASSWORD'],
-        # 'HOST': dotenv_variables['DB_HOST'],
-        'NAME': 'db',
-        'USER': 'bot',
-        'PASSWORD': 'root',
-        'HOST': 'password',
-        'PORT': '3306',
+        'NAME': dotenv_variables['DB_NAME'],
+        'USER': dotenv_variables['DB_USER'],
+        'PASSWORD': dotenv_variables['DB_PASSWORD'],
+        'HOST': dotenv_variables['DB_HOST'],
+        'PORT' : '3306'
     }
 }
 
@@ -132,7 +128,6 @@ CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
         'LOCATION': 'redis://redis:6379/0',
-        # 'LOCATION': 'redis://127.0.0.1:6379/0',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
