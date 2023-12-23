@@ -11,6 +11,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By 
 
+import undetected_chromedriver as uc
+
 class ParseNews:
     
     """Class for parsing and working with news"""
@@ -21,13 +23,13 @@ class ParseNews:
 
     
     def selenium_option(self):
-        options = Options()
-        options.add_argument("--no-sandbox")
+        options = uc.ChromeOptions()
+        options.headless=True
         options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
         options.add_argument("--no-proxe-server")
         options.add_argument("--disable-gpu")
-
-        response = webdriver.Chrome(options=options)
+        response = uc.Chrome(options=options,driver_executable_path="/usr/bin/chromedriver")
         return response
 
 
