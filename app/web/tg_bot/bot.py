@@ -228,6 +228,7 @@ def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
     
     
 def schedule_add_news_in_db():
+    print('add news in db')
     tag = Tags()
     news = ParseNews()
     news.get_delete_old_news()
@@ -235,6 +236,7 @@ def schedule_add_news_in_db():
 
 
 def schedule_sending_news():
+    print('sending news')
     user = Users()
     tag = Tags()
     news = { x:tag.get_show_tags(x) for x in user.get_all_users() if x != None }
@@ -245,8 +247,10 @@ def schedule_sending_news():
 
 
 def thread():
+    print('thread start')
     #add new news and delete older than 6 hours
     schedule.every(60).minutes.do(schedule_add_news_in_db)
+    
 
     # Tasks by UTC
     schedule.every().day.at("10:00").do(schedule_sending_news)
@@ -259,5 +263,5 @@ def thread():
 
 def run_bot():
     print('bot started')
-    thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
     thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
+    thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()

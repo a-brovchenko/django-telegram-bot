@@ -12,7 +12,7 @@ SECRET_KEY = dotenv_variables['DJANGO_TOKEN']
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['checkers-p2p.pp.ua', '135.181.107.219']
 
 
 # Application definition

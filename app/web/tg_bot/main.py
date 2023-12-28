@@ -10,7 +10,9 @@ from .models import News_bot, Users_bot, Tags_bot
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By 
-
+from django.db.utils import DataError
+from json_logger_stdout import JSONStdFormatter, json_std_logger, JSONLoggerStdout
+import socket
 import undetected_chromedriver as uc
 
 class ParseNews:
@@ -26,9 +28,10 @@ class ParseNews:
         options = uc.ChromeOptions()
         options.headless=True
         options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
+        #options.add_argument("--no-sandbox")
         options.add_argument("--no-proxe-server")
         options.add_argument("--disable-gpu")
+        options.add_argument("--disable-dev-shm-usage")
         response = uc.Chrome(options=options,driver_executable_path="/usr/bin/chromedriver")
         return response
 
@@ -65,7 +68,7 @@ class ParseNews:
                 else:
                     continue
 
-            except (AttributeError, ValueError):
+            except:
                 continue
 
         response.quit()
@@ -103,7 +106,7 @@ class ParseNews:
                 
                 news_list.append((text, link, tag, date_publisher))
 
-            except (AttributeError, ValueError):
+            except:
                 continue
         return news_list
 
@@ -134,7 +137,7 @@ class ParseNews:
                         continue
                     else:
                         news_list.append((text, link, tag,  date))
-            except (AttributeError, ValueError):
+            except:
                 continue
         return news_list
 
@@ -144,8 +147,21 @@ class ParseNews:
         # news = []
         for i in news:
             if i[1] not in check_list:
-                news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
-                news.save()
+                try:
+                    news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
+                    news.save()
+                except Exception as e:
+                    if "Data too long for column 'news' at row 1" in str(e):
+                        with open('long_news.txt', 'a') as f:
+                            f.write(str(a))
+                            f.write('\n')
+                            f.close()
+        
+                        logger = JSONLoggerStdout(
+                            container_id=socket.gethostname(),
+                            container_name="BOT"
+                        )
+                        logger.error(e)
 
 
     def get_delete_old_news(self):

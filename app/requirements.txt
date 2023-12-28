@@ -12,3 +12,4 @@ selenium==4.15.2
 pytz==2023.3.post1
 mysqlclient==2.2.1
 undetected-chromedriver==3.5.4
+json-logger-stdout==1.1.5
