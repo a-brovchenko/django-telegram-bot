@@ -265,7 +265,10 @@ def thread():
         time.sleep(1)
 
 def run_bot():
-   
+    logger = JSONLoggerStdout(
+        container_id=socket.gethostname(),
+        container_name="BOT"
+    )
     max_retries = 10
     retry_delay = 1
     max_retry_delay = 60
@@ -280,12 +283,8 @@ def run_bot():
 
         except Exception as e:
             
-            if retries >= max_retries:
-                    logger = JSONLoggerStdout(
-                            container_id=socket.gethostname(),
-                            container_name="BOT"
-                        )
-                    logger.error(e)
+            if retries >= max_retries:    
+                logger.error(e)
 
             retries += 1
             logging.error(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")

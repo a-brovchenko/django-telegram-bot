@@ -16,6 +16,11 @@ import undetected_chromedriver as uc
 class ParseNews:
     
     """Class for parsing and working with news"""
+
+    logger = JSONLoggerStdout(
+        container_id=socket.gethostname(),
+        container_name="BOT"
+    )
     
     def get_search_news(self, value):
 
@@ -67,11 +72,9 @@ class ParseNews:
                     continue
 
             except Exception as e:
-                logger = JSONLoggerStdout(
-                    container_id=socket.gethostname(),
-                    container_name="BOT"
-                )
-                logger.error(e)
+                
+                self.logger.error(e)
+                continue
 
         response.quit()
         return news_list
@@ -109,11 +112,10 @@ class ParseNews:
                 news_list.append((text, link, tag, date_publisher))
 
             except Exception as e:
-                logger = JSONLoggerStdout(
-                    container_id=socket.gethostname(),
-                    container_name="BOT"
-                )
-                logger.error(e)
+
+                self.logger.error(e)
+                continue
+
         return news_list
 
 
@@ -143,13 +145,11 @@ class ParseNews:
                         continue
                     else:
                         news_list.append((text, link, tag,  date))
-                        
+
             except Exception as e:
-                logger = JSONLoggerStdout(
-                    container_id=socket.gethostname(),
-                    container_name="BOT"
-                )
-                logger.error(e)
+
+                self.logger.error(e)
+
         return news_list
 
 
@@ -166,12 +166,7 @@ class ParseNews:
                             f.write(i[0])
                             f.write('\n')
                             f.close()
-        
-                        logger = JSONLoggerStdout(
-                            container_id=socket.gethostname(),
-                            container_name="BOT"
-                        )
-                        logger.error(e)
+                        self.logger.error(e)
 
 
     def get_delete_old_news(self):
