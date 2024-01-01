@@ -1,7 +1,5 @@
-import os
 import re
 from bs4 import BeautifulSoup as bs
-import json
 import requests
 from datetime import datetime, timedelta
 import django
@@ -11,7 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By 
 from django.db.utils import DataError
-from json_logger_stdout import JSONStdFormatter, json_std_logger, JSONLoggerStdout
+from json_logger_stdout import JSONLoggerStdout
 import socket
 import undetected_chromedriver as uc
 
@@ -68,8 +66,12 @@ class ParseNews:
                 else:
                     continue
 
-            except:
-                continue
+            except Exception as e:
+                logger = JSONLoggerStdout(
+                    container_id=socket.gethostname(),
+                    container_name="BOT"
+                )
+                logger.error(e)
 
         response.quit()
         return news_list
@@ -106,8 +108,12 @@ class ParseNews:
                 
                 news_list.append((text, link, tag, date_publisher))
 
-            except:
-                continue
+            except Exception as e:
+                logger = JSONLoggerStdout(
+                    container_id=socket.gethostname(),
+                    container_name="BOT"
+                )
+                logger.error(e)
         return news_list
 
 
@@ -137,14 +143,18 @@ class ParseNews:
                         continue
                     else:
                         news_list.append((text, link, tag,  date))
-            except:
-                continue
+                        
+            except Exception as e:
+                logger = JSONLoggerStdout(
+                    container_id=socket.gethostname(),
+                    container_name="BOT"
+                )
+                logger.error(e)
         return news_list
 
 
     def get_add_news(self, news, check_list):
         """add news to database"""
-        # news = []
         for i in news:
             if i[1] not in check_list:
                 try:
@@ -153,7 +163,7 @@ class ParseNews:
                 except Exception as e:
                     if "Data too long for column 'news' at row 1" in str(e):
                         with open('long_news.txt', 'a') as f:
-                            f.write(str(a))
+                            f.write(i[0])
                             f.write('\n')
                             f.close()
         

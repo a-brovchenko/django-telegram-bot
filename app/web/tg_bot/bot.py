@@ -11,6 +11,9 @@ import logging
 import threading
 from rest_framework.authtoken.models import Token
 from .models import Users_bot
+import random
+from json_logger_stdout import JSONLoggerStdout
+import socket
 
 load_dotenv()
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
@@ -262,6 +265,30 @@ def thread():
         time.sleep(1)
 
 def run_bot():
-    print('bot started')
-    thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
-    thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
+   
+    max_retries = 10
+    retry_delay = 1
+    max_retry_delay = 60
+    retries = 0
+
+    while True:
+        try:
+            thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
+            thr = threading.Thread(target=thread, name='Daemon', daemon=True).start()
+            print('bot started')
+            break
+
+        except Exception as e:
+            
+            if retries >= max_retries:
+                    logger = JSONLoggerStdout(
+                            container_id=socket.gethostname(),
+                            container_name="BOT"
+                        )
+                    logger.error(e)
+
+            retries += 1
+            logging.error(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
+            delay = min(retry_delay * 2 ** retries, max_retry_delay)
+            logging.info(f"Retrying in {delay} seconds...")
+            time.sleep(delay)
