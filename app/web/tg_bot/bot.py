@@ -7,13 +7,11 @@ from .main import ParseNews, Users, Tags
 from django.core.cache import cache
 import schedule
 import time
-import logging
 import threading
 from rest_framework.authtoken.models import Token
 from .models import Users_bot
-import random
-from json_logger_stdout import JSONLoggerStdout
-import socket
+from .logger import logger
+
 
 load_dotenv()
 bot = telebot.TeleBot(os.environ.get("BOT_TOKEN"))
@@ -33,76 +31,79 @@ def start(message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def main(call):
-    # pagination
-    if f"{call.data.split('#')[0]}" in list(cache.keys('*')): 
-        page = int(call.data.split('#')[1])
-        send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
+    try:
+        # pagination
+        if f"{call.data.split('#')[0]}" in list(cache.keys('*')): 
+            page = int(call.data.split('#')[1])
+            send_news_user(call.data.split('#')[0], page, call.message.chat.id, call.message.message_id)
 
-    #return start page
-    elif call.data == 'start':
-        start(call.message)
+        #return start page
+        elif call.data == 'start':
+            start(call.message)
 
-    #deleting user data from the database
-    elif call.data == "🚫 Unsubscribe":
-        del_user = Users()
-        user = del_user.get_show_user(call.message.chat.id)
-        if user:
-            del_user.get_delete_user(id_user=call.message.chat.id)
-            bot.send_message(call.message.chat.id, '🚫 You have unsubscribed from the newsletter ', parse_mode='html')
+        #deleting user data from the database
+        elif call.data == "🚫 Unsubscribe":
+            del_user = Users()
+            user = del_user.get_show_user(call.message.chat.id)
+            if user:
+                del_user.get_delete_user(id_user=call.message.chat.id)
+                bot.send_message(call.message.chat.id, '🚫 You have unsubscribed from the newsletter ', parse_mode='html')
 
-        else:
-            bot.send_message(call.message.chat.id, 'You are not subscribed', parse_mode='html')
+            else:
+                bot.send_message(call.message.chat.id, 'You are not subscribed', parse_mode='html')
 
-    #delete selected tag
-    elif call.data == "❌ Delete tag":
-        text = "Enter the tag you want to unsubscribe from"
-        message = bot.send_message(call.message.chat.id, text, parse_mode='html')
-        bot.register_next_step_handler(message, delete_tag)
+        #delete selected tag
+        elif call.data == "❌ Delete tag":
+            text = "Enter the tag you want to unsubscribe from"
+            message = bot.send_message(call.message.chat.id, text, parse_mode='html')
+            bot.register_next_step_handler(message, delete_tag)
 
 
-    # add user data from the database
-    elif call.data == "✅ Subscribe":
-        markup = types.InlineKeyboardMarkup()
-        btn1 = types.InlineKeyboardButton("✅ Add tag", callback_data='✅ Add tag')
-        markup.add(btn1)
-        text = "Enter the tag for which you want to receive news"
-        message = bot.send_message(call.message.chat.id, text, parse_mode='html')
-        bot.register_next_step_handler(message, add_tags_in_db)
-
-    # add selected tag
-    elif call.data == "✅ Add tag":
-
-        tag_add = bot.send_message(call.message.chat.id, ' Please enter a tag', parse_mode='HTML')
-        bot.register_next_step_handler(tag_add, add_tags_in_db)
-
-    elif call.data == '📨 Show token':
-        user = Users()
-        user_token = user.get_show_user(id_user=call.message.chat.id)
-        user_token = user_token.first()
-        if user_token.token == 'False':
-            text = "You don't have a token\nPlease generate it"
+        # add user data from the database
+        elif call.data == "✅ Subscribe":
             markup = types.InlineKeyboardMarkup()
-            btn1 = types.InlineKeyboardButton('✅ Generate token', callback_data='✅ Generate token')
-            btn2 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
-            markup.add(btn1, btn2)
+            btn1 = types.InlineKeyboardButton("✅ Add tag", callback_data='✅ Add tag')
+            markup.add(btn1)
+            text = "Enter the tag for which you want to receive news"
+            message = bot.send_message(call.message.chat.id, text, parse_mode='html')
+            bot.register_next_step_handler(message, add_tags_in_db)
+
+        # add selected tag
+        elif call.data == "✅ Add tag":
+
+            tag_add = bot.send_message(call.message.chat.id, ' Please enter a tag', parse_mode='HTML')
+            bot.register_next_step_handler(tag_add, add_tags_in_db)
+
+        elif call.data == '📨 Show token':
+            user = Users()
+            user_token = user.get_show_user(id_user=call.message.chat.id)
+            user_token = user_token.first()
+            if user_token.token == 'False':
+                text = "You don't have a token\nPlease generate it"
+                markup = types.InlineKeyboardMarkup()
+                btn1 = types.InlineKeyboardButton('✅ Generate token', callback_data='✅ Generate token')
+                btn2 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
+                markup.add(btn1, btn2)
+                bot.send_message(call.message.chat.id, text, parse_mode='html', reply_markup=markup)
+
+            else:
+                text = f"Your token:\n{user_token.token}"
+                bot.send_message(call.message.chat.id, text, parse_mode='html')
+
+        elif call.data == '✅ Generate token':
+
+            user = Users_bot.objects.get(telegram_id=call.message.chat.id)
+            token, created = Token.objects.get_or_create(user=user)
+            user.token = token.key
+            user.save()
+            markup = types.InlineKeyboardMarkup()
+            btn1 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
+            markup.add(btn1)
+            text = f"Your token:\n{token}"
             bot.send_message(call.message.chat.id, text, parse_mode='html', reply_markup=markup)
 
-        else:
-            text = f"Your token:\n{user_token.token}"
-            bot.send_message(call.message.chat.id, text, parse_mode='html')
-
-    elif call.data == '✅ Generate token':
-
-        user = Users_bot.objects.get(telegram_id=call.message.chat.id)
-        token, created = Token.objects.get_or_create(user=user)
-        user.token = token.key
-        user.save()
-        markup = types.InlineKeyboardMarkup()
-        btn1 = types.InlineKeyboardButton('⬅️Back', callback_data='start')
-        markup.add(btn1)
-        text = f"Your token:\n{token}"
-        bot.send_message(call.message.chat.id, text, parse_mode='html', reply_markup=markup)
-        
+    except Exception as e:
+        logger.error(e) 
 
 @bot.message_handler(content_types=['text'])
 def get_user_text(message):
@@ -231,7 +232,6 @@ def send_news_user(tags_news=None, page=None, id_user=None, message_id=None):
     
     
 def schedule_add_news_in_db():
-    print('add news in db')
     tag = Tags()
     news = ParseNews()
     news.get_delete_old_news()
@@ -239,7 +239,6 @@ def schedule_add_news_in_db():
 
 
 def schedule_sending_news():
-    print('sending news')
     user = Users()
     tag = Tags()
     news = { x:tag.get_show_tags(x) for x in user.get_all_users() if x != None }
@@ -250,30 +249,23 @@ def schedule_sending_news():
 
 
 def thread():
-    print('thread start')
     #add new news and delete older than 6 hours
     schedule.every(60).minutes.do(schedule_add_news_in_db)
     
-
     # Tasks by UTC
     schedule.every().day.at("10:00").do(schedule_sending_news)
     schedule.every().day.at("18:00").do(schedule_sending_news)
    
-
     while True:
         schedule.run_pending()
         time.sleep(1)
 
 def run_bot():
-    logger = JSONLoggerStdout(
-        container_id=socket.gethostname(),
-        container_name="BOT"
-    )
     max_retries = 10
     retry_delay = 1
     max_retry_delay = 60
     retries = 0
-
+    
     while True:
         try:
             thr1 = threading.Thread(target=bot.polling, args=(True,)).start()
@@ -282,12 +274,9 @@ def run_bot():
             break
 
         except Exception as e:
-            
             if retries >= max_retries:    
-                logger.error(e)
+                pass
 
             retries += 1
-            logging.error(f"Failed to connect to MySQL server (attempt {retries} of {max_retries}): {str(e)}")
             delay = min(retry_delay * 2 ** retries, max_retry_delay)
-            logging.info(f"Retrying in {delay} seconds...")
             time.sleep(delay)
