@@ -5,25 +5,16 @@ from datetime import datetime, timedelta
 import django
 django.setup()
 from .models import News_bot, Users_bot, Tags_bot
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By 
-from django.db.utils import DataError
-from json_logger_stdout import JSONLoggerStdout
-import socket
 import undetected_chromedriver as uc
+from .logger import logger
+
 
 class ParseNews:
     
     """Class for parsing and working with news"""
 
-    logger = JSONLoggerStdout(
-        container_id=socket.gethostname(),
-        container_name="BOT"
-    )
-    
     def get_search_news(self, value):
-
         return self.abc_news(value) + self.ndtv_news(value) + self.the_sun_news(value)
 
     
@@ -31,7 +22,6 @@ class ParseNews:
         options = uc.ChromeOptions()
         options.headless=True
         options.add_argument("--headless")
-        #options.add_argument("--no-sandbox")
         options.add_argument("--no-proxe-server")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
@@ -72,8 +62,7 @@ class ParseNews:
                     continue
 
             except Exception as e:
-                
-                self.logger.error(e)
+                logger.error(e)
                 continue
 
         response.quit()
@@ -112,8 +101,7 @@ class ParseNews:
                 news_list.append((text, link, tag, date_publisher))
 
             except Exception as e:
-
-                self.logger.error(e)
+                logger.error(e)
                 continue
 
         return news_list
@@ -147,8 +135,8 @@ class ParseNews:
                         news_list.append((text, link, tag,  date))
 
             except Exception as e:
-
-                self.logger.error(e)
+                logger.error(e)
+                continue
 
         return news_list
 
@@ -161,13 +149,13 @@ class ParseNews:
                     news = News_bot(news=i[0], site=i[1], tags=i[2], data_publisher=i[3])
                     news.save()
                 except Exception as e:
+                    logger.error(e)
                     if "Data too long for column 'news' at row 1" in str(e):
                         with open('long_news.txt', 'a') as f:
                             f.write(i[0])
                             f.write('\n')
                             f.close()
-                        self.logger.error(e)
-
+                            
 
     def get_delete_old_news(self):
         """Deleting news older than 6 hours"""
@@ -258,7 +246,6 @@ class Tags:
             result = Tags_bot.objects.values('tags').distinct()
             tags = [x['tags'] for x in result]
         
-
         return tags
     
 

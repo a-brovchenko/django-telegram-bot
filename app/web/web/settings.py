@@ -14,7 +14,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['checkers-p2p.pp.ua', '135.181.107.219']
 
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -74,14 +73,18 @@ WSGI_APPLICATION = 'web.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': dotenv_variables['DB_NAME'],
-        'USER': dotenv_variables['DB_USER'],
-        'PASSWORD': dotenv_variables['DB_PASSWORD'],
-        'HOST': dotenv_variables['DB_HOST'],
-        'PORT' : '3306'
+        # 'NAME': dotenv_variables['DB_NAME'],
+        # 'USER': dotenv_variables['DB_USER'],
+        # 'PASSWORD': dotenv_variables['DB_PASSWORD'],
+        # 'HOST': dotenv_variables['DB_HOST'],
+        # 'PORT' : '3306'
+        'NAME': 'bot',  
+        'USER': 'root',  
+        'PASSWORD': 'password',  
+        'HOST': '127.0.0.1',  
+        'PORT': '3306',  
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
@@ -127,7 +130,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://redis:6379/0',
+        # 'LOCATION': 'redis://redis:6379/0',
+        'LOCATION': 'redis://127.0.0.1:6379/0',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
@@ -135,3 +139,4 @@ CACHES = {
 }
 
 AUTH_USER_MODEL = 'tg_bot.Users_bot'
+

@@ -13,3 +13,4 @@ pytz==2023.3.post1
 mysqlclient==2.2.1
 undetected-chromedriver==3.5.4
 json-logger-stdout==1.1.5
+json_log_formatter==0.5.2
